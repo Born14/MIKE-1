@@ -12,9 +12,9 @@ from typing import Optional
 
 class TradeGrade(Enum):
     """Trade quality grades."""
-    A = "A"      # Full conviction, full size
-    B = "B"      # Partial conviction, minimal size
-    NO_TRADE = "NO_TRADE"  # Does not meet criteria
+    A_TIER = "A"        # High confidence, meets all criteria
+    B_TIER = "B"        # Acceptable, meets minimum criteria
+    NO_TRADE = "NO"     # Does not meet criteria
 
 
 @dataclass

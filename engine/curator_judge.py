@@ -141,13 +141,13 @@ def main():
     min_grade = config.scoring.min_trade_grade
     print("=" * 70)
 
-    if best_verdict.grade == TradeGrade.A and min_grade == "A":
+    if best_verdict.grade == TradeGrade.A_TIER and min_grade == "A":
         print("✅ READY TO EXECUTE (meets min_trade_grade: A)")
         print()
         print("Next steps:")
         print("  1. Arm the system: Set 'armed: true' in config")
         print("  2. Execute via Executor or wait for Scout to detect signal")
-    elif best_verdict.grade == TradeGrade.B and min_grade in ["A", "B"]:
+    elif best_verdict.grade == TradeGrade.B_TIER and min_grade in ["A", "B"]:
         if min_grade == "A":
             print("⚠️  B-TIER - BLOCKED (min_trade_grade is 'A')")
             print()

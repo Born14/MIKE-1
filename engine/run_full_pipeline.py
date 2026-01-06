@@ -28,10 +28,11 @@ from mike1.modules.broker_factory import BrokerFactory
 from mike1.modules.scout import Scout
 from mike1.modules.curator import Curator
 from mike1.modules.judge import Judge
+from mike1.core.trade import TradeGrade
 from mike1.modules.executor import Executor
+from mike1.modules.llm_client import GeminiClient
 from mike1.core.config import Config
 from mike1.core.risk_governor import RiskGovernor
-from mike1.core.trade import TradeGrade
 
 
 def print_section(title):
@@ -78,7 +79,8 @@ def main():
     print("Initializing MIKE-1 components...")
     scout = Scout(broker, config)
     curator = Curator(broker, config)
-    judge = Judge(broker, config)
+    llm_client = GeminiClient()  # Uses GEMINI_API_KEY from env
+    judge = Judge(broker, llm_client)
 
     # Risk Governor
     governor = RiskGovernor(config)
@@ -241,9 +243,9 @@ def main():
         print(f"[{i}/{len(best_trades)}] {signal.ticker} ${candidate.strike:.0f} {candidate.option_type.upper()} - {verdict.grade.value}-TIER")
 
         # Check if meets minimum grade
-        if verdict.grade == TradeGrade.A and min_grade == "A":
+        if verdict.grade == TradeGrade.A_TIER and min_grade == "A":
             status = "✅ APPROVED"
-        elif verdict.grade == TradeGrade.B and min_grade in ["A", "B"]:
+        elif verdict.grade == TradeGrade.B_TIER and min_grade in ["A", "B"]:
             if min_grade == "A":
                 status = "❌ BLOCKED (B-tier, requires A)"
                 blocked_count += 1

@@ -15,21 +15,14 @@ Output: Grade (A/B/NO_TRADE) + Score (0-10) + Reasoning
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
 from typing import Optional
 import structlog
 
 from ..core.config import get_config
 from ..core.scouters_rubric import ScoringRubric
+from ..core.trade import TradeGrade  # Consolidated enum
 
 logger = structlog.get_logger()
-
-
-class TradeGrade(Enum):
-    """Trade quality grade."""
-    A_TIER = "A"        # High confidence, meets all criteria
-    B_TIER = "B"        # Acceptable, meets minimum criteria
-    NO_TRADE = "NO"     # Does not meet criteria
 
 
 @dataclass
@@ -191,7 +184,8 @@ class Judge:
         symbol: str,
         direction: str,
         strike: Optional[float] = None,
-        expiration: Optional[str] = None
+        expiration: Optional[str] = None,
+        use_llm: bool = True
     ) -> JudgeVerdict:
         """
         Grade a trade candidate.
@@ -225,10 +219,10 @@ class Judge:
         else:
             warnings.append("No strike/expiration - liquidity/delta/DTE not scored")
 
-        # 3. Get catalyst data (if LLM available)
+        # 3. Get catalyst data (if LLM available and enabled)
         catalyst = None
         cat_score = 5.0  # Default neutral if no LLM
-        if self.llm_client:
+        if self.llm_client and use_llm:
             catalyst = self._get_catalyst_data(symbol, direction)
             cat_score, cat_reasons = self._score_catalyst(catalyst)
             reasoning.extend(cat_reasons)
