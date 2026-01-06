@@ -103,6 +103,21 @@ class Curator:
             result.scan_time_ms = (time.time() - start_time) * 1000
             return result
 
+        # Check stock volume as liquidity proxy (if available)
+        min_volume = self.config.options.min_stock_volume
+        if min_volume > 0:
+            stock_volume = self.broker.get_stock_volume(symbol)
+            if stock_volume and stock_volume < min_volume:
+                result.warnings.append(
+                    f"Stock volume {stock_volume:,} below min {min_volume:,}"
+                )
+                logger.warning("Stock volume too low for liquid options",
+                             symbol=symbol,
+                             volume=stock_volume,
+                             min_required=min_volume)
+                result.scan_time_ms = (time.time() - start_time) * 1000
+                return result
+
         # Scan all valid expirations
         all_candidates = []
         for expiration in expirations:

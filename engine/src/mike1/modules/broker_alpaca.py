@@ -676,10 +676,11 @@ class AlpacaBroker(Broker):
 
             bars = self._data_client.get_stock_bars(request)
 
-            if symbol not in bars or len(bars[symbol]) < 2:
+            # Access via .data dict
+            if symbol not in bars.data or len(bars.data[symbol]) < 2:
                 return None
 
-            bar_list = list(bars[symbol])
+            bar_list = bars.data[symbol]
 
             # Current volume = today's (or most recent) volume
             current_volume = int(bar_list[-1].volume)

@@ -147,6 +147,13 @@ class Broker(ABC):
         """Get volume data (current and average)."""
         return None
 
+    def get_stock_volume(self, symbol: str) -> Optional[int]:
+        """Get current day's stock volume."""
+        data = self.get_volume_data(symbol)
+        if data and 'current_volume' in data:
+            return int(data['current_volume'])
+        return None
+
     def get_vwap(self, symbol: str) -> Optional[dict]:
         """Get VWAP data."""
         return None

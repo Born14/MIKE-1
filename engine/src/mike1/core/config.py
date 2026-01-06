@@ -57,7 +57,8 @@ class OptionsConfig(BaseModel):
     b_tier: DeltaRange = Field(default_factory=lambda: DeltaRange(delta_min=0.15, delta_max=0.30))
     min_dte: int = 3
     max_dte: int = 14
-    min_open_interest: int = 500
+    min_open_interest: int = 0  # Alpaca paper doesn't provide OI
+    min_stock_volume: int = 1000000  # Min daily volume for liquid options (1M)
     max_bid_ask_spread_pct: float = 0.10
 
 
