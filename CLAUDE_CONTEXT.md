@@ -164,10 +164,12 @@ scoring:
 - [x] **GitHub versioning** - https://github.com/Born14/MIKE-1
 
 ### Not Built Yet
-- [ ] Scout module (signal detection)
-- [ ] **Curator module (option chain scanning/selection) - PLAN READY**
+- [ ] **Scout module (signal detection) - PLAN READY (See SCOUT_IMPLEMENTATION_PLAN.md)**
+- [ ] **Curator module (option chain scanning/selection) - PLAN READY (See CURATOR_IMPLEMENTATION_PLAN.md)**
 - [ ] CLI commands for status/arm/kill (mike1 status, arm, positions)
 - [ ] Re-entry logic
+
+**Implementation Order:** Build Curator FIRST (12-14 hrs), then Scout (18-20 hrs) for full automation.
 
 ## Judge Module (FULLY WORKING)
 

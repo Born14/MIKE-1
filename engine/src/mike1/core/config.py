@@ -114,6 +114,14 @@ class LoggingConfig(BaseModel):
     retain_days: int = 365
 
 
+class CuratorConfig(BaseModel):
+    """Curator (option chain selection) settings."""
+    max_candidates: int = 3
+    ideal_delta: float = 0.375  # Midpoint of A-tier range (0.30-0.45)
+    unusual_activity_boost: float = 20.0
+    cache_chain_seconds: int = 60
+
+
 class EngineConfig(BaseModel):
     """Engine runtime settings."""
     poll_interval: int = 30
@@ -136,6 +144,7 @@ class Config(BaseModel):
     risk: RiskConfig = Field(default_factory=RiskConfig)
     exits: ExitConfig = Field(default_factory=ExitConfig)
     options: OptionsConfig = Field(default_factory=OptionsConfig)
+    curator: CuratorConfig = Field(default_factory=CuratorConfig)
     scoring: ScoringConfig = Field(default_factory=ScoringConfig)
     reentry: ReentryConfig = Field(default_factory=ReentryConfig)
     basket: BasketConfig = Field(default_factory=BasketConfig)
