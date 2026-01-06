@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 
 class PositionState(Enum):
@@ -227,13 +228,15 @@ class Position:
 
         # Parse force close time
         hour, minute = map(int, force_close_time.split(":"))
-        now = datetime.now()
 
-        # Compare current time to force close time
-        # Note: Assumes system is running in ET or adjust accordingly
-        force_close_dt = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        # Get current time in Eastern Time (US/Eastern)
+        eastern = ZoneInfo("America/New_York")
+        now_et = datetime.now(eastern)
 
-        return now >= force_close_dt
+        # Create force close datetime in Eastern Time
+        force_close_dt = now_et.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+        return now_et >= force_close_dt
 
     def record_trim(self, trim_number: int, price: float, contracts_sold: int) -> None:
         """Record a trim execution."""
