@@ -60,10 +60,14 @@ def main():
     print(f"   Min trade grade: {config.scoring.min_trade_grade}")
     print()
 
-    # Connect to broker (use paper for testing if no credentials)
+    # Connect to broker (use Alpaca if --live, else simulated paper)
     print("Connecting to broker...")
-    broker_type = "paper"  # Use paper broker for testing
-    broker = BrokerFactory.create(broker_type, starting_cash=100000.0)
+    if args.live:
+        broker_type = "alpaca"
+        broker = BrokerFactory.create(broker_type, paper=True)  # Alpaca paper account
+    else:
+        broker_type = "paper"
+        broker = BrokerFactory.create(broker_type, starting_cash=100000.0)  # Simulated
     if not broker.connect():
         print("❌ ERROR: Failed to connect to broker")
         sys.exit(1)

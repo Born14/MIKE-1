@@ -7,7 +7,7 @@
 # =============================================================================
 version: "1.0.0"
 environment: "paper"  # paper | live
-armed: false          # Master switch - must be true to execute trades
+armed: true           # Master switch - must be true to execute trades
 
 # =============================================================================
 # RISK LIMITS (The Governor)
@@ -72,7 +72,7 @@ options:
   max_dte: 14
 
   # Liquidity Filters
-  min_open_interest: 500
+  min_open_interest: 0      # Alpaca paper doesn't provide OI data - set to 0 for testing
   max_bid_ask_spread_pct: 0.10
 
 # =============================================================================
