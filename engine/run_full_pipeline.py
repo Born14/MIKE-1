@@ -28,7 +28,7 @@ from mike1.modules.broker_factory import BrokerFactory
 from mike1.modules.scout import Scout
 from mike1.modules.curator import Curator
 from mike1.modules.judge import Judge
-from mike1.core.trade import TradeGrade
+from mike1.core.trade import TradeGrade, Trade
 from mike1.modules.executor import Executor
 from mike1.modules.llm_client import GeminiClient
 from mike1.core.config import Config
@@ -307,17 +307,31 @@ def main():
                 continue
 
             print(f"   🚀 EXECUTING TRADE...")
-            # TODO: Wire up actual execution
-            # executor.execute_option_trade(
-            #     ticker=signal.ticker,
-            #     strike=candidate.strike,
-            #     expiration=candidate.expiration,
-            #     option_type=candidate.option_type,
-            #     quantity=contracts
-            # )
-            print(f"   ✅ Trade executed")
+
+            # Create Trade object
+            trade = Trade(
+                signal=signal,
+                grade=verdict.grade,
+                contracts=contracts,
+                max_risk=config.risk.max_risk_per_trade,
+                strike=candidate.strike,
+                expiration=candidate.expiration,
+            )
+            trade.approve()
+
+            # Execute via Executor
+            position = executor.execute_trade(trade)
+
+            if position:
+                print(f"   ✅ Trade executed - Position ID: {position.id}")
+                print(f"      Entry: ${position.entry_price:.2f} x {position.contracts}")
+                executed_count += 1
+            else:
+                print(f"   ❌ Trade failed to execute")
+                if trade.rejection_reason:
+                    print(f"      Reason: {trade.rejection_reason}")
+                blocked_count += 1
             print()
-            executed_count += 1
 
     # ==========================================================================
     # SUMMARY
