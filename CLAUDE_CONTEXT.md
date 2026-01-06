@@ -1,6 +1,6 @@
 # MIKE-1 Context for Claude
 
-**Last Updated:** 2026-01-05 (A-TIER only mode, Delta/DTE scoring, GitHub versioning)
+**Last Updated:** 2026-01-06 (Curator 4th layer planned)
 
 **GitHub:** https://github.com/Born14/MIKE-1
 
@@ -39,11 +39,14 @@ MIKE-1/
 └── CLAUDE_CONTEXT.md     # This file
 ```
 
-## Three Minds Architecture
+## Four Minds Architecture
 
 1. **Scout** - Detects opportunities (NOT BUILT YET)
-2. **Judge** - Scores and grades trades (FULLY WORKING + TESTED)
-3. **Executor** - Enforces exits without emotion (FULLY WORKING)
+2. **Curator** - Selects optimal option contracts from chain (PLANNED - See CURATOR_IMPLEMENTATION_PLAN.md)
+3. **Judge** - Scores and grades trades (FULLY WORKING + TESTED)
+4. **Executor** - Enforces exits without emotion (FULLY WORKING)
+
+**The Missing Piece:** Curator is the bridge between Scout's signal and Judge's evaluation. It scans option chains, filters by delta/DTE/liquidity, and ranks candidates so Judge can evaluate the best 3 contracts instead of requiring manual strike/expiration selection.
 
 ## Grade Filter (A-TIER Only Mode)
 
@@ -162,7 +165,7 @@ scoring:
 
 ### Not Built Yet
 - [ ] Scout module (signal detection)
-- [ ] Option chain scanning (find right strike/expiration)
+- [ ] **Curator module (option chain scanning/selection) - PLAN READY**
 - [ ] CLI commands for status/arm/kill (mike1 status, arm, positions)
 - [ ] Re-entry logic
 
