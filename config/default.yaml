@@ -141,12 +141,31 @@ reentry:
   sizing: "same"                  # same | smaller
 
 # =============================================================================
-# BASKET (Your Universe)
+# BASKET (Ticker Sources)
 # =============================================================================
 basket:
-  tickers:
+  # Scout scans tickers from multiple sources (priority order)
+
+  # Source 1: Manual screening results (HIGHEST PRIORITY)
+  # Use this to feed tickers from external screeners (Finviz, TradingView, etc.)
+  manual:
+    enabled: true
+    file: "data/manual_tickers.txt"  # One ticker per line
+    max_age_hours: 24                # Ignore if file older than 24h
+
+  # Source 2: Core watchlist (always monitored)
+  core:
+    enabled: true
+    tickers:
+      - SPY    # Market benchmark
+      - QQQ    # Tech benchmark
+      - NVDA   # AI/chips leader
+      - TSLA   # Momentum leader
+
+  # Source 3: Category watchlists (lower priority)
+  categories:
+    enabled: true
     tech:
-      - NVDA
       - AMD
       - SMCI
       - PLTR
@@ -154,22 +173,24 @@ basket:
       - GOOGL
       - MSFT
       - AAPL
-
     biotech:
       - LLY
       - MRNA
       - NVO
-
     momentum:
-      - TSLA
       - MSTR
       - GME
       - COIN
-
     etfs:
-      - SPY
-      - QQQ
       - IWM
+
+  # Source 4: Auto-screener (future - disabled for now)
+  screener:
+    enabled: false  # Enable when screener module is built
+    max_tickers: 50
+
+  # Deduplication: If same ticker appears in multiple sources, scan only once
+  deduplicate: true
 
 # =============================================================================
 # NOTIFICATIONS

@@ -13,10 +13,43 @@ Scout does NOT:
 - ❌ Execute trades (that's Executor's job)
 
 Scout ONLY:
-- ✅ Scans basket of tickers from config
+- ✅ Scans tickers from multiple sources (manual, core, categories, screener)
 - ✅ Detects catalysts (volume, news, technical setups)
 - ✅ Creates `TradeSignal` objects with context
 - ✅ Passes signals to Curator for contract selection
+
+### Ticker Sources (Multi-Source Architecture)
+
+Scout reads tickers from **4 sources** (in priority order):
+
+1. **Manual Input** (Highest Priority)
+   - File: `data/manual_tickers.txt`
+   - Use case: Feed results from external screeners (Finviz, TradingView)
+   - Workflow: You screen → add tickers to file → Scout validates
+   - Max age: 24 hours (configurable)
+
+2. **Core Watchlist**
+   - Always-on monitoring: SPY, QQQ, NVDA, TSLA
+   - High-liquidity names worth watching daily
+
+3. **Category Watchlists**
+   - Tech, Biotech, Momentum, ETFs
+   - Pre-defined lists from config
+
+4. **Auto-Screener** (Future)
+   - Automated market scanning
+   - Disabled until screener module is built
+
+**Deduplication:** If same ticker appears in multiple sources, Scout scans it once.
+
+**Example:**
+```bash
+# Morning: You screen on Finviz, find 3 interesting tickers
+echo -e "AAPL\nNVDA\nUPST" > data/manual_tickers.txt
+
+# Scout scans: 3 manual + 4 core + 18 categories = 25 total (deduplicated)
+python run_scout.py
+```
 
 ---
 
