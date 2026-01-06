@@ -1,0 +1,5 @@
+# Ignore user-specific ticker inputs
+manual_tickers.txt
+
+# But keep the directory structure
+!.gitignore

@@ -83,17 +83,126 @@ class ReentryConfig(BaseModel):
     sizing: str = "same"
 
 
+class ManualBasketSource(BaseModel):
+    """Manual ticker input from file."""
+    enabled: bool = True
+    file: str = "data/manual_tickers.txt"
+    max_age_hours: int = 24
+
+
+class CoreBasketSource(BaseModel):
+    """Core watchlist - always monitored."""
+    enabled: bool = True
+    tickers: list[str] = Field(default_factory=lambda: ["SPY", "QQQ", "NVDA", "TSLA"])
+
+
+class CategoriesBasketSource(BaseModel):
+    """Category-based watchlists."""
+    enabled: bool = True
+    tech: list[str] = Field(default_factory=list)
+    biotech: list[str] = Field(default_factory=list)
+    momentum: list[str] = Field(default_factory=list)
+    etfs: list[str] = Field(default_factory=list)
+
+
+class ScreenerBasketSource(BaseModel):
+    """Auto-screener results (future)."""
+    enabled: bool = False
+    max_tickers: int = 50
+
+
 class BasketConfig(BaseModel):
-    """Your trading universe."""
-    tickers: dict[str, list[str]] = Field(default_factory=dict)
+    """Ticker sources for Scout scanning."""
+    manual: ManualBasketSource = Field(default_factory=ManualBasketSource)
+    core: CoreBasketSource = Field(default_factory=CoreBasketSource)
+    categories: CategoriesBasketSource = Field(default_factory=CategoriesBasketSource)
+    screener: ScreenerBasketSource = Field(default_factory=ScreenerBasketSource)
+    deduplicate: bool = True
 
     @property
     def all_tickers(self) -> list[str]:
-        """Get flat list of all tickers."""
+        """
+        Get flat list of all tickers from all enabled sources.
+
+        Order of priority:
+        1. Manual file
+        2. Core watchlist
+        3. Category watchlists
+        4. Screener results
+        """
         tickers = []
-        for category_tickers in self.tickers.values():
-            tickers.extend(category_tickers)
-        return list(set(tickers))
+
+        # Source 1: Manual (from file)
+        if self.manual.enabled:
+            manual_tickers = self._read_manual_file()
+            tickers.extend(manual_tickers)
+
+        # Source 2: Core
+        if self.core.enabled:
+            tickers.extend(self.core.tickers)
+
+        # Source 3: Categories
+        if self.categories.enabled:
+            tickers.extend(self.categories.tech)
+            tickers.extend(self.categories.biotech)
+            tickers.extend(self.categories.momentum)
+            tickers.extend(self.categories.etfs)
+
+        # Source 4: Screener (future)
+        # if self.screener.enabled:
+        #     tickers.extend(self._get_screener_results())
+
+        # Deduplicate if enabled
+        if self.deduplicate:
+            return list(dict.fromkeys(tickers))  # Preserves order
+
+        return tickers
+
+    def _read_manual_file(self) -> list[str]:
+        """Read tickers from manual input file."""
+        from pathlib import Path
+        from datetime import datetime, timedelta
+        import os
+
+        file_path = Path(self.manual.file)
+
+        # If path is relative, resolve from project root
+        if not file_path.is_absolute():
+            # Look for file relative to config directory
+            search_paths = [
+                file_path,  # Current directory
+                Path("..") / file_path,  # Parent directory (if running from engine/)
+                Path(os.environ.get("MIKE1_ROOT", ".")) / file_path,  # Project root
+            ]
+
+            # Find first existing file
+            for candidate in search_paths:
+                if candidate.exists():
+                    file_path = candidate
+                    break
+
+        # Check if file exists
+        if not file_path.exists():
+            return []
+
+        # Check file age
+        file_age = datetime.now() - datetime.fromtimestamp(file_path.stat().st_mtime)
+        max_age = timedelta(hours=self.manual.max_age_hours)
+
+        if file_age > max_age:
+            # File too old, ignore it
+            return []
+
+        # Read tickers (one per line, skip comments and empty lines)
+        with open(file_path, 'r') as f:
+            tickers = []
+            for line in f:
+                line = line.strip()
+                # Skip empty lines and comments
+                if line and not line.startswith('#'):
+                    tickers.append(line.upper())
+
+        return tickers
 
 
 class NotificationsConfig(BaseModel):
@@ -118,6 +227,7 @@ class CuratorConfig(BaseModel):
     """Curator (option chain selection) settings."""
     max_candidates: int = 3
     ideal_delta: float = 0.375  # Midpoint of A-tier range (0.30-0.45)
+    unusual_activity_threshold: float = 1.25  # Vol/OI ratio to trigger UOA
     unusual_activity_boost: float = 20.0
     cache_chain_seconds: int = 60
 

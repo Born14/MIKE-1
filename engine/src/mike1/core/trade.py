@@ -54,6 +54,9 @@ class TradeSignal:
     avg_volume: Optional[int] = None
     rsi: Optional[float] = None
 
+    # Priority (for Scout ranking)
+    priority: int = 0  # Higher = more urgent
+
     # Scoring
     score: Optional[ScoringResult] = None
 
@@ -216,6 +219,35 @@ class OptionCandidate:
             "vol_oi_ratio": self.vol_oi_ratio,
             "is_unusual_activity": self.is_unusual_activity,
             "curator_score": self.curator_score,
+        }
+
+
+@dataclass
+class ScoutResult:
+    """
+    Result of a Scout scan cycle.
+    """
+    # Signals detected (sorted by priority desc)
+    signals: list[TradeSignal] = field(default_factory=list)
+
+    # Scan metadata
+    tickers_scanned: int = 0
+    signals_detected: int = 0
+    scan_time_ms: float = 0.0
+    timestamp: datetime = field(default_factory=datetime.now)
+
+    # Warnings/errors
+    warnings: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for logging."""
+        return {
+            "tickers_scanned": self.tickers_scanned,
+            "signals_detected": self.signals_detected,
+            "scan_time_ms": self.scan_time_ms,
+            "top_signal": self.signals[0].to_dict() if self.signals else None,
+            "warnings": self.warnings,
+            "timestamp": self.timestamp.isoformat(),
         }
 
 
