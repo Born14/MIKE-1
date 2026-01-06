@@ -23,6 +23,8 @@ import uuid
 from ..core.trade import TradeSignal, ScoutResult
 from ..core.config import Config
 from .broker import Broker
+from .llm_client import get_llm_client
+from .social import get_social_client
 from structlog import get_logger
 
 logger = get_logger()
@@ -170,6 +172,209 @@ class VolumeDetector(BaseDetector):
 
 
 # =============================================================================
+# NEWS DETECTOR
+# =============================================================================
+
+class NewsDetector(BaseDetector):
+    """Detects news-driven catalysts using social data + LLM."""
+
+    def __init__(self, config: Config, broker: Broker):
+        super().__init__(config, broker)
+        self.social_client = get_social_client()
+        self.llm_client = get_llm_client()
+
+    def detect(self, ticker: str) -> Optional[TradeSignal]:
+        """
+        Detect news catalyst.
+
+        Criteria:
+        - Recent news/social mentions (>10 mentions)
+        - LLM confirms catalyst is significant
+        - Clear sentiment direction
+        """
+        try:
+            # Get social data
+            social_data = self.social_client.get_social_data(ticker)
+
+            if social_data.total_mentions < 10:
+                # Not enough chatter
+                return None
+
+            # Get current price for context
+            current_price = self.broker.get_stock_price(ticker)
+            if not current_price:
+                return None
+
+            # Build LLM prompt
+            news_snippets = []
+
+            # Include StockTwits messages
+            for msg in social_data.stocktwits_messages[:5]:
+                news_snippets.append(f"StockTwits: {msg.get('body', '')}")
+
+            # Include Reddit posts
+            for post in social_data.reddit_posts[:3]:
+                news_snippets.append(f"Reddit: {post.get('title', '')}")
+
+            # Include Alpha Vantage articles
+            for article in social_data.alphavantage_articles[:3]:
+                news_snippets.append(f"News: {article.get('title', '')}")
+
+            if not news_snippets:
+                return None
+
+            # Ask LLM to assess
+            prompt = f"""Analyze this social/news data for {ticker} (current price: ${current_price:.2f}):
+
+{chr(10).join(news_snippets[:10])}
+
+Is there a significant catalyst that would drive options trading? Consider:
+- Earnings announcements
+- Product launches
+- Regulatory news
+- Major partnerships
+- Analyst upgrades/downgrades
+- Unusual market action
+
+Ignore: General market commentary, technical analysis posts, casual mentions."""
+
+            if not self.llm_client:
+                # No LLM available, fall back to sentiment only
+                if social_data.is_trending:
+                    direction = "call" if social_data.overall_sentiment == "bullish" else "put"
+                    return TradeSignal(
+                        id=self._generate_signal_id(),
+                        ticker=ticker,
+                        direction=direction,
+                        catalyst_type="news",
+                        catalyst_description=f"Trending: {social_data.total_mentions} mentions ({social_data.overall_sentiment})",
+                        catalyst_time=datetime.now(),
+                        current_price=current_price,
+                        priority=CATALYST_PRIORITIES["news"]
+                    )
+                return None
+
+            # Use LLM
+            assessment = self.llm_client.assess_catalyst(prompt)
+            if not assessment or not assessment.get("has_catalyst"):
+                return None
+
+            # Determine direction from LLM sentiment
+            sentiment = assessment.get("sentiment", "neutral")
+            if sentiment == "bullish":
+                direction = "call"
+            elif sentiment == "bearish":
+                direction = "put"
+            else:
+                return None  # No clear direction
+
+            # Create signal
+            signal = TradeSignal(
+                id=self._generate_signal_id(),
+                ticker=ticker,
+                direction=direction,
+                catalyst_type="news",
+                catalyst_description=assessment.get("summary", "News catalyst detected"),
+                catalyst_time=datetime.now(),
+                current_price=current_price,
+                priority=CATALYST_PRIORITIES["news"]
+            )
+
+            logger.info(
+                "News catalyst detected",
+                ticker=ticker,
+                direction=direction,
+                mentions=social_data.total_mentions,
+                sentiment=sentiment,
+                confidence=assessment.get("confidence")
+            )
+
+            return signal
+
+        except Exception as e:
+            logger.error("Error detecting news", ticker=ticker, error=str(e))
+            return None
+
+
+# =============================================================================
+# TECHNICAL DETECTOR
+# =============================================================================
+
+class TechnicalDetector(BaseDetector):
+    """Detects technical setups (RSI extremes, VWAP reversals)."""
+
+    def detect(self, ticker: str) -> Optional[TradeSignal]:
+        """
+        Detect technical catalyst.
+
+        Criteria:
+        - RSI <30 (oversold) or >70 (overbought)
+        - Price crossing VWAP with volume confirmation
+        """
+        try:
+            # Get price and RSI
+            current_price = self.broker.get_stock_price(ticker)
+            if not current_price:
+                return None
+
+            rsi = self.broker.get_rsi(ticker, period=14)
+            if not rsi:
+                return None
+
+            # RSI extreme checks
+            if rsi <= 30:
+                # Oversold - potential bounce (call)
+                direction = "call"
+                description = f"RSI oversold at {rsi:.1f}"
+            elif rsi >= 70:
+                # Overbought - potential pullback (put)
+                direction = "put"
+                description = f"RSI overbought at {rsi:.1f}"
+            else:
+                # No RSI extreme
+                return None
+
+            # Get VWAP for additional context
+            vwap_data = self.broker.get_vwap(ticker)
+            vwap = vwap_data.get("vwap") if vwap_data else None
+
+            # Get volume for confirmation
+            volume_data = self.broker.get_volume_data(ticker)
+            current_volume = volume_data.get("current_volume") if volume_data else 0
+            avg_volume = volume_data.get("avg_volume") if volume_data else 0
+
+            # Create signal
+            signal = TradeSignal(
+                id=self._generate_signal_id(),
+                ticker=ticker,
+                direction=direction,
+                catalyst_type="technical",
+                catalyst_description=description,
+                catalyst_time=datetime.now(),
+                current_price=current_price,
+                vwap=vwap,
+                volume=current_volume,
+                avg_volume=avg_volume,
+                rsi=rsi,
+                priority=CATALYST_PRIORITIES["technical"]
+            )
+
+            logger.info(
+                "Technical setup detected",
+                ticker=ticker,
+                direction=direction,
+                rsi=rsi,
+                description=description
+            )
+
+            return signal
+
+        except Exception as e:
+            logger.error("Error detecting technical", ticker=ticker, error=str(e))
+            return None
+
+
+# =============================================================================
 # MAIN SCOUT CLASS
 # =============================================================================
 
@@ -191,10 +396,11 @@ class Scout:
         self.broker = broker
         self.config = config
 
-        # Initialize detectors
+        # Initialize detectors (in priority order)
         self.detectors = [
-            VolumeDetector(config, broker),
-            # TODO: Add more detectors (news, technical, UOA)
+            NewsDetector(config, broker),      # Priority 8 (high)
+            VolumeDetector(config, broker),    # Priority 5 (medium)
+            TechnicalDetector(config, broker), # Priority 4 (low)
         ]
 
         # Cooldown tracking (prevent re-scanning same ticker)
