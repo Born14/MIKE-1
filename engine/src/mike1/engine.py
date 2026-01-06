@@ -322,6 +322,11 @@ def main():
         type=str,
         help="Path to config file"
     )
+    monitor_parser.add_argument(
+        "-y", "--yes",
+        action="store_true",
+        help="Skip confirmation prompt for live trading"
+    )
 
     # Grade Command
     grade_parser = subparsers.add_parser("grade", help="Grade a trade candidate")
@@ -357,7 +362,7 @@ def main():
         print(f"  Broker: {'Paper (local)' if args.paper_broker else 'Alpaca'}")
         print()
 
-        if not dry_run:
+        if not dry_run and not getattr(args, 'yes', False):
             print("  WARNING: Live trading enabled!")
             print("  Trades WILL be executed.")
             print()
@@ -365,6 +370,9 @@ def main():
             if confirm != "CONFIRM":
                 print("  Aborted.")
                 return
+        elif not dry_run:
+            print("  WARNING: Live trading enabled! (--yes flag used)")
+            print()
 
         run_engine(
             config_path=args.config,

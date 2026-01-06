@@ -578,11 +578,12 @@ class AlpacaBroker(Broker):
 
             bars = self._data_client.get_stock_bars(request)
 
-            if symbol not in bars or len(bars[symbol]) < period + 1:
+            # Access via .data dict
+            if symbol not in bars.data or len(bars.data[symbol]) < period + 1:
                 logger.warning("Insufficient bars for ATR", symbol=symbol)
                 return 0
 
-            bar_list = list(bars[symbol])
+            bar_list = bars.data[symbol]
 
             # Calculate True Range for each bar
             true_ranges = []
