@@ -1,6 +1,6 @@
 # MIKE-1 Context for Claude
 
-**Last Updated:** 2026-01-06 (Curator 4th layer planned)
+**Last Updated:** 2026-01-06 (Full pipeline integration complete)
 
 **GitHub:** https://github.com/Born14/MIKE-1
 
@@ -18,22 +18,30 @@ MIKE-1/
 │   └── default.yaml      # ALL trading rules live here (no hardcoded values)
 ├── db/
 │   └── schema.sql        # NeonDB PostgreSQL schema
+├── data/
+│   ├── manual_tickers.txt  # Manual ticker input for Scout
+│   └── README.md           # Usage docs for manual screening
 ├── engine/
+│   ├── run_full_pipeline.py      # Full Scout → Curator → Judge → Executor
+│   ├── run_scout.py              # Scout CLI (signal detection only)
+│   ├── test_pipeline_with_signal.py  # E2E test with injected signal
 │   └── src/mike1/
 │       ├── core/
-│       │   ├── config.py         # Pydantic config loader (includes AtrTrailingConfig)
+│       │   ├── config.py         # Pydantic config loader (includes BasketConfig)
 │       │   ├── position.py       # Position tracking, HWM, ATR stop logic
 │       │   ├── risk_governor.py  # Absolute authority on risk
 │       │   ├── scouters_rubric.py # Centralized scoring (Delta, DTE, Tech, Liquidity)
-│       │   └── trade.py          # Trade grading (A/B/NO_TRADE)
+│       │   └── trade.py          # Trade grading + TradeSignal + ScoutResult
 │       └── modules/
 │           ├── broker.py         # Base Broker ABC + PaperBroker (includes get_atr)
 │           ├── broker_alpaca.py  # Alpaca integration (includes get_atr)
 │           ├── broker_factory.py # Creates brokers with failover
+│           ├── scout.py          # Signal detection (3 detectors)
+│           ├── curator.py        # Option chain scanning + ranking
 │           ├── executor.py       # Exit enforcement + grade filter
 │           ├── judge.py          # Trade scoring with Delta/DTE
 │           ├── llm_client.py     # Gemini LLM integration
-│           ├── social.py         # Social data (StockTwits, Reddit)
+│           ├── social.py         # Social data (StockTwits, Reddit, Alpha Vantage)
 │           └── logger.py         # Database logging
 ├── .env                  # Secrets (Alpaca keys, DATABASE_URL)
 └── CLAUDE_CONTEXT.md     # This file
@@ -41,12 +49,30 @@ MIKE-1/
 
 ## Four Minds Architecture
 
-1. **Scout** - Detects opportunities (NOT BUILT YET)
-2. **Curator** - Selects optimal option contracts from chain (PLANNED - See CURATOR_IMPLEMENTATION_PLAN.md)
-3. **Judge** - Scores and grades trades (FULLY WORKING + TESTED)
-4. **Executor** - Enforces exits without emotion (FULLY WORKING)
+1. **Scout** - Detects opportunities (FULLY IMPLEMENTED ✅)
+   - 3 detectors: VolumeDetector, NewsDetector, TechnicalDetector
+   - Integrates social data (StockTwits, Reddit, Alpha Vantage)
+   - LLM-powered catalyst assessment via Gemini
+   - Priority-based signal ranking
+   - Cooldown system prevents duplicate signals
 
-**The Missing Piece:** Curator is the bridge between Scout's signal and Judge's evaluation. It scans option chains, filters by delta/DTE/liquidity, and ranks candidates so Judge can evaluate the best 3 contracts instead of requiring manual strike/expiration selection.
+2. **Curator** - Selects optimal option contracts from chain (FULLY IMPLEMENTED ✅)
+   - Scans option chains and ranks by 100-point score
+   - Filters by delta (0.15-0.45), DTE (3-14), liquidity (OI ≥500)
+   - Detects unusual options activity (Vol/OI ratio)
+   - Returns top 3 candidates for Judge evaluation
+
+3. **Judge** - Scores and grades trades (FULLY WORKING + TESTED ✅)
+   - Direction-aware technical scoring
+   - Delta/DTE/liquidity assessment
+   - LLM catalyst validation
+   - A-TIER (≥7.0), B-TIER (5.0-6.9), NO_TRADE (<5.0)
+
+4. **Executor** - Enforces exits without emotion (FULLY WORKING ✅)
+   - Multi-contract trims (+25%, +50%)
+   - ATR trailing stops (single contracts)
+   - Hard stop (-50%), 0DTE force close
+   - Grade filter (A-TIER only mode)
 
 ## Grade Filter (A-TIER Only Mode)
 
@@ -145,8 +171,8 @@ scoring:
 
 ## Current Status
 
-### Working (Tested)
-- [x] Config loading from YAML
+### Working (Tested ✅)
+- [x] Config loading from YAML (multi-source ticker basket)
 - [x] Risk Governor (limits, kill switch, daily tracking)
 - [x] Position tracking with high water mark
 - [x] Exit trigger detection (trims, stops)
@@ -162,14 +188,80 @@ scoring:
 - [x] **Judge with Delta/DTE scoring** - Centralized rubric
 - [x] **Grade filter** - A-TIER only until validated
 - [x] **GitHub versioning** - https://github.com/Born14/MIKE-1
+- [x] **Scout module** - 3 detectors (Volume, News, Technical)
+- [x] **Curator module** - Option chain scanning + 100pt ranking
+- [x] **Full pipeline integration** - Scout → Curator → Judge → Executor
+- [x] **Manual ticker input** - Phase 1 (data/manual_tickers.txt)
+- [x] **LLM integration** - Gemini for catalyst assessment
+- [x] **Social data** - StockTwits, Reddit, Alpha Vantage
 
 ### Not Built Yet
-- [ ] **Scout module (signal detection) - PLAN READY (See SCOUT_IMPLEMENTATION_PLAN.md)**
-- [ ] **Curator module (option chain scanning/selection) - PLAN READY (See CURATOR_IMPLEMENTATION_PLAN.md)**
 - [ ] CLI commands for status/arm/kill (mike1 status, arm, positions)
 - [ ] Re-entry logic
+- [ ] Automated screener (Phase 2/3 - market-wide scanning)
+- [ ] Real-time data feed (currently 30s polling)
 
-**Implementation Order:** Build Curator FIRST (12-14 hrs), then Scout (18-20 hrs) for full automation.
+## Scout Module (FULLY IMPLEMENTED)
+
+**Purpose:** Detect trading signals from market data and social sentiment
+
+**3 Detectors:**
+1. **VolumeDetector** (Priority 5)
+   - Volume ≥ 2.5x average
+   - Absolute volume > 1M shares
+   - Clear direction (price vs VWAP)
+
+2. **NewsDetector** (Priority 8 - highest)
+   - Social mentions ≥10 (StockTwits, Reddit, Alpha Vantage)
+   - LLM-powered catalyst assessment (Gemini)
+   - Sentiment-based direction
+
+3. **TechnicalDetector** (Priority 4)
+   - RSI extremes (<30 oversold, >70 overbought)
+   - VWAP context
+
+**Usage:**
+```bash
+cd engine
+python run_scout.py                    # Scan all tickers
+python run_scout.py --clear-cooldowns  # Reset cooldowns
+```
+
+**Ticker Sources (Priority Order):**
+1. Manual input - data/manual_tickers.txt (Phase 1)
+2. Core watchlist - SPY, QQQ, NVDA, TSLA
+3. Categories - Tech, Biotech, Momentum, ETFs
+4. Screener - Not yet implemented (Phase 2/3)
+
+**Key Files:**
+- [scout.py](engine/src/mike1/modules/scout.py) - Core Scout logic + 3 detectors
+- [social.py](engine/src/mike1/modules/social.py) - Social data aggregation
+- [llm_client.py](engine/src/mike1/modules/llm_client.py) - Gemini integration
+
+## Curator Module (FULLY IMPLEMENTED)
+
+**Purpose:** Find and rank best option contracts for a signal
+
+**100-Point Scoring System:**
+- Delta scoring: 30 points (0.30-0.45 = A-tier)
+- Liquidity: 30 points (OI, spread, volume)
+- Unusual activity: 20 points (Vol/OI ratio)
+- ATM proximity: 20 points
+
+**Filters:**
+- Delta: 0.15-0.45
+- DTE: 3-14 days
+- Open Interest: ≥500
+- Bid-Ask spread: ≤10%
+
+**Usage:**
+```bash
+cd engine
+python curator_judge.py NVDA call  # Find + grade best options
+```
+
+**Key Files:**
+- [curator.py](engine/src/mike1/modules/curator.py) - Option chain scanning + ranking
 
 ## Judge Module (FULLY WORKING)
 
@@ -192,6 +284,27 @@ python judge_ticker.py TSLA call --no-llm  # Skip LLM scoring
 - [llm_client.py](engine/src/mike1/modules/llm_client.py) - Gemini integration
 - [social.py](engine/src/mike1/modules/social.py) - Social data aggregation
 
+## Full Pipeline Integration
+
+**Usage:**
+```bash
+cd engine
+python run_full_pipeline.py                  # Dry-run (simulation)
+python run_full_pipeline.py --live           # Live mode (if armed)
+python run_full_pipeline.py --max-signals 3  # Limit processing
+python run_full_pipeline.py --clear-cooldowns # Reset Scout cooldowns
+```
+
+**Flow:**
+1. Scout scans all tickers → detects signals
+2. Curator finds best 3 option contracts per signal
+3. Judge scores and grades each candidate
+4. Executor manages approved A-tier trades
+
+**Key Files:**
+- [run_full_pipeline.py](engine/run_full_pipeline.py) - Complete integration
+- [test_pipeline_with_signal.py](engine/test_pipeline_with_signal.py) - E2E test
+
 ## Credentials Location
 
 All in `.env` (gitignored):
@@ -212,7 +325,7 @@ All in `.env` (gitignored):
 ## Test Commands
 
 ```bash
-cd c:/Users/mccar/MIKE-1/engine
+cd engine
 
 # Test Alpaca connection
 python test_alpaca_connection.py
@@ -229,7 +342,19 @@ python test_gemini_parsing.py
 # Test Judge integration (grade thresholds, direction scoring, UOA)
 python test_judge_integration.py
 
-# START THE ENGINE (dry run - monitors but doesn't trade)
+# Run Scout (signal detection only)
+python run_scout.py
+python run_scout.py --clear-cooldowns
+
+# Run full pipeline (Scout → Curator → Judge → Executor)
+python run_full_pipeline.py                  # Dry-run
+python run_full_pipeline.py --live           # Live mode
+python run_full_pipeline.py --max-signals 3  # Limit signals
+
+# Test pipeline with injected signal
+python test_pipeline_with_signal.py
+
+# START THE ENGINE (position monitoring - monitors but doesn't trade)
 python run_mike1.py --dry-run
 
 # START THE ENGINE (live - will execute trades!)
@@ -245,12 +370,29 @@ python run_mike1.py --live
 - **A-TIER only** until we validate performance
 - **30s polling interval** - can cause stop slippage on fast-moving 0DTE options
 
-## Ticker Universe (from config)
+## Ticker Universe (Multi-Source Basket)
 
-**Tech:** NVDA, AMD, SMCI, PLTR, META, GOOGL, MSFT, AAPL
-**Biotech:** LLY, MRNA, NVO
-**Momentum:** TSLA, MSTR, GME, COIN
-**ETFs:** SPY, QQQ, IWM
+Scout scans tickers from multiple sources (priority order):
+
+**1. Manual Input (Highest Priority)**
+- File: `data/manual_tickers.txt`
+- Purpose: Feed external screening results (Finviz, TradingView, etc.)
+- Age limit: 24 hours (configurable)
+
+**2. Core Watchlist**
+- SPY, QQQ, NVDA, TSLA
+
+**3. Categories**
+- **Tech:** NVDA, AMD, SMCI, PLTR, META, GOOGL, MSFT, AAPL
+- **Biotech:** LLY, MRNA, NVO
+- **Momentum:** TSLA, MSTR, GME, COIN
+- **ETFs:** SPY, QQQ, IWM
+
+**4. Automated Screener** (Not Yet Implemented - Phase 2/3)
+- Market-wide scanning
+- Real-time unusual activity detection
+
+**Total Tickers:** 19 (deduplicated across all sources)
 
 ## Lessons Learned
 
