@@ -118,6 +118,7 @@ class CuratorConfig(BaseModel):
     """Curator (option chain selection) settings."""
     max_candidates: int = 3
     ideal_delta: float = 0.375  # Midpoint of A-tier range (0.30-0.45)
+    unusual_activity_threshold: float = 1.25  # Vol/OI ratio to trigger UOA
     unusual_activity_boost: float = 20.0
     cache_chain_seconds: int = 60
 

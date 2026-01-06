@@ -284,7 +284,7 @@ class Curator:
         vol_oi_ratio = quote.volume / quote.open_interest if quote.open_interest > 0 else 0
 
         # Detect unusual activity
-        unusual_threshold = 1.25  # TODO: Move to config
+        unusual_threshold = self.config.curator.unusual_activity_threshold
         is_unusual = vol_oi_ratio >= unusual_threshold
 
         # Create candidate

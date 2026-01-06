@@ -85,8 +85,9 @@ curator:
   # Ideal delta target (A-tier midpoint: 0.375 = midpoint of 0.30-0.45)
   ideal_delta: 0.375
 
-  # Boost unusual activity in ranking
-  unusual_activity_boost: 20  # Points added if Vol/OI >= 1.25
+  # Unusual Options Activity (UOA) detection
+  unusual_activity_threshold: 1.25  # Vol/OI ratio to trigger UOA (1.25 = 25% above normal)
+  unusual_activity_boost: 20        # Points added when UOA detected
 
   # Cache chain data (reduce API calls)
   cache_chain_seconds: 60
