@@ -161,3 +161,95 @@ class Trade:
             "rejected": self.rejected,
             "rejection_reason": self.rejection_reason,
         }
+
+
+@dataclass
+class OptionCandidate:
+    """
+    A single option contract candidate from chain scan (Curator output).
+    """
+    # Contract identity
+    symbol: str
+    strike: float
+    expiration: str
+    option_type: str  # "call" or "put"
+
+    # Greeks & metrics (for filtering)
+    delta: float
+    dte: int
+    open_interest: int
+    volume: int
+    bid: float
+    ask: float
+    spread_pct: float
+
+    # Unusual activity detection
+    vol_oi_ratio: float = 0.0
+    is_unusual_activity: bool = False
+
+    # Curator ranking score (0-100)
+    # Higher = better candidate for Judge evaluation
+    curator_score: float = 0.0
+
+    # Ranking reasons (why this score?)
+    ranking_reasons: list[str] = field(default_factory=list)
+
+    @property
+    def spread_dollars(self) -> float:
+        """Bid-ask spread in dollars."""
+        return self.ask - self.bid
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for logging."""
+        return {
+            "symbol": self.symbol,
+            "strike": self.strike,
+            "expiration": self.expiration,
+            "option_type": self.option_type,
+            "delta": self.delta,
+            "dte": self.dte,
+            "open_interest": self.open_interest,
+            "volume": self.volume,
+            "bid": self.bid,
+            "ask": self.ask,
+            "spread_pct": self.spread_pct,
+            "vol_oi_ratio": self.vol_oi_ratio,
+            "is_unusual_activity": self.is_unusual_activity,
+            "curator_score": self.curator_score,
+        }
+
+
+@dataclass
+class CuratorResult:
+    """
+    Result of Curator's option chain scan.
+    """
+    # Input
+    symbol: str
+    direction: str  # "call" or "put"
+
+    # Top candidates (sorted by curator_score desc)
+    candidates: list[OptionCandidate] = field(default_factory=list)
+
+    # Scan metadata
+    total_contracts_scanned: int = 0
+    total_passing_filters: int = 0
+    scan_time_ms: float = 0.0
+    timestamp: datetime = field(default_factory=datetime.now)
+
+    # Warnings/errors
+    warnings: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for logging."""
+        return {
+            "symbol": self.symbol,
+            "direction": self.direction,
+            "total_contracts_scanned": self.total_contracts_scanned,
+            "total_passing_filters": self.total_passing_filters,
+            "scan_time_ms": self.scan_time_ms,
+            "candidates_count": len(self.candidates),
+            "top_candidate": self.candidates[0].to_dict() if self.candidates else None,
+            "warnings": self.warnings,
+            "timestamp": self.timestamp.isoformat(),
+        }

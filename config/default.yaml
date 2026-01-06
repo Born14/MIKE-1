@@ -76,6 +76,22 @@ options:
   max_bid_ask_spread_pct: 0.10
 
 # =============================================================================
+# CURATOR (Option Chain Selection)
+# =============================================================================
+curator:
+  # How many candidates to pass to Judge
+  max_candidates: 3
+
+  # Ideal delta target (A-tier midpoint: 0.375 = midpoint of 0.30-0.45)
+  ideal_delta: 0.375
+
+  # Boost unusual activity in ranking
+  unusual_activity_boost: 20  # Points added if Vol/OI >= 1.25
+
+  # Cache chain data (reduce API calls)
+  cache_chain_seconds: 60
+
+# =============================================================================
 # SCORING (The Judge)
 # =============================================================================
 scoring:
