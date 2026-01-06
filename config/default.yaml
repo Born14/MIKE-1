@@ -1,0 +1,218 @@
+# MIKE-1 Configuration
+# All trading logic is driven by this file
+# No hard-coded numbers in code. Ever.
+
+# =============================================================================
+# IDENTITY
+# =============================================================================
+version: "1.0.0"
+environment: "paper"  # paper | live
+armed: false          # Master switch - must be true to execute trades
+
+# =============================================================================
+# RISK LIMITS (The Governor)
+# =============================================================================
+risk:
+  # Per Trade
+  max_risk_per_trade: 200       # Max dollars at risk per trade
+  max_contracts: 1              # Max contracts per position
+
+  # Per Day
+  max_trades_per_day: 2         # Stop after this many trades
+  max_daily_loss: 100           # Daily loss limit - triggers kill switch
+
+  # Global
+  kill_switch: false            # Emergency stop - halts all activity
+
+# =============================================================================
+# EXIT RULES (Non-Negotiable)
+# =============================================================================
+exits:
+  # Profit Taking
+  trim_1:
+    trigger_pct: 25             # First trim at +25%
+    sell_pct: 50                # Sell 50% of position
+
+  trim_2:
+    trigger_pct: 50             # Second trim at +50%
+    sell_pct: 100               # Sell remaining (100% of what's left)
+
+  # Stop Loss
+  trailing_stop_pct: 25         # Trail 25% from high water mark
+  hard_stop_pct: 50             # Hard stop at -50%, non-negotiable
+
+  # ATR-Based Trailing (for single contracts)
+  # Trails from entry - no activation threshold
+  # Simple formula: multiplier * 10 = trailing stop %
+  #   2.0 = 20% trailing stop
+  #   2.5 = 25% trailing stop
+  atr_trailing:
+    enabled: true               # Use ATR trailing for single contracts
+    multiplier: 2.5             # 2.5 = 25% trailing stop from HWM
+    period: 14                  # ATR lookback period (for future use)
+
+  # Time-Based
+  close_at_dte: -1               # Force close at X DTE (-1 = disabled)
+  force_close_0dte_time: "15:30" # Force close 0DTE positions at this time (ET)
+
+# =============================================================================
+# OPTION SELECTION
+# =============================================================================
+options:
+  # Delta Targeting
+  a_tier:
+    delta_min: 0.30
+    delta_max: 0.45
+  b_tier:
+    delta_min: 0.15
+    delta_max: 0.30
+
+  # Expiration
+  min_dte: 3
+  max_dte: 14
+
+  # Liquidity Filters
+  min_open_interest: 500
+  max_bid_ask_spread_pct: 0.10
+
+# =============================================================================
+# SCORING (The Judge)
+# =============================================================================
+scoring:
+  # Points required for each grade
+  a_tier_min: 5
+  b_tier_min: 3
+
+  # Scoring criteria
+  criteria:
+    catalyst_recency:
+      description: "News/event within last 4 hours"
+      points: 2
+
+    price_confirms:
+      description: "Price above/below VWAP in trade direction"
+      points: 1
+
+    volume_spike:
+      description: "Volume > 2x average"
+      points: 1
+
+    trend_aligned:
+      description: "Moving with broader trend"
+      points: 1
+
+    not_overextended:
+      description: "RSI not extreme, room to run"
+      points: 1
+
+# =============================================================================
+# RE-ENTRY RULES
+# =============================================================================
+reentry:
+  enabled: true
+  max_reentries: 2
+
+  conditions:
+    require_prior_trim: true      # Only after taking profit
+    require_pullback: true        # Must pull back to support
+    require_thesis_intact: true   # Original catalyst still valid
+
+  sizing: "same"                  # same | smaller
+
+# =============================================================================
+# BASKET (Your Universe)
+# =============================================================================
+basket:
+  tickers:
+    tech:
+      - NVDA
+      - AMD
+      - SMCI
+      - PLTR
+      - META
+      - GOOGL
+      - MSFT
+      - AAPL
+
+    biotech:
+      - LLY
+      - MRNA
+      - NVO
+
+    momentum:
+      - TSLA
+      - MSTR
+      - GME
+      - COIN
+
+    etfs:
+      - SPY
+      - QQQ
+      - IWM
+
+# =============================================================================
+# NOTIFICATIONS
+# =============================================================================
+notifications:
+  enabled: true
+  channels:
+    - console   # Always on
+    # - email   # Future
+    # - sms     # Future
+
+  events:
+    signal_detected: true
+    trade_executed: true
+    trim_executed: true
+    stop_hit: true
+    daily_limit_reached: true
+    system_error: true
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+logging:
+  level: "INFO"
+
+  # What gets logged
+  log_signals: true
+  log_grades: true
+  log_entries: true
+  log_exits: true
+  log_pnl: true
+
+  # Retention
+  retain_days: 365
+
+# =============================================================================
+# BROKER SETTINGS
+# =============================================================================
+broker:
+  # Primary broker: alpaca | paper
+  primary: "alpaca"
+
+  # Fallback broker if primary fails: paper
+  fallback: "paper"
+
+  # Use failover (auto-switch to fallback on error)
+  use_failover: true
+
+  # Alpaca-specific settings
+  alpaca:
+    # Use paper trading (simulated)
+    paper: true
+
+# =============================================================================
+# ENGINE SETTINGS
+# =============================================================================
+engine:
+  # Polling interval for position monitoring (seconds)
+  poll_interval: 30
+
+  # Market hours (Eastern Time)
+  market_open: "09:30"
+  market_close: "16:00"
+
+  # Pre/post market
+  allow_premarket: false
+  allow_afterhours: false
