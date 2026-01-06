@@ -13,7 +13,12 @@
       "Bash(python:*)",
       "Bash(set PYTHONPATH=src:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: MIKE-1 v1.0.0\n\nThree Minds Architecture:\n- Scout: Signal detection \\(not built yet\\)\n- Judge: Trade scoring with direction-aware technicals \\(WORKING\\)\n- Executor: Exit enforcement with ATR trailing \\(WORKING\\)\n\nCore Features:\n- Alpaca broker integration \\(paper + live\\)\n- Risk Governor with hard limits\n- Judge scoring: Technical \\(35%\\), Liquidity \\(35%\\), Catalyst \\(30%\\)\n- Delta/DTE scoring via centralized ScoringRubric\n- LLM integration \\(Gemini\\) for catalyst assessment\n- Social data aggregation \\(StockTwits, Reddit, Alpha Vantage\\)\n- Database logging \\(PostgreSQL\\)\n\nConfig-driven - no hardcoded values.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git config:*)",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)"
     ]
   }
 }

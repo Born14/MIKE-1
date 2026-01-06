@@ -491,6 +491,19 @@ class Executor:
 
         The Judge has already approved this. We just execute.
         """
+        # Check minimum grade requirement
+        min_grade = self.config.scoring.min_trade_grade
+        trade_grade = trade.grade.value if trade.grade else "N"
+
+        # Grade hierarchy: A > B > N (NO_TRADE)
+        grade_rank = {"A": 3, "B": 2, "N": 1}
+        if grade_rank.get(trade_grade, 0) < grade_rank.get(min_grade, 0):
+            reason = f"Grade {trade_grade} below minimum {min_grade}"
+            logger.warning("Trade blocked by grade filter",
+                          grade=trade_grade, min_grade=min_grade)
+            trade.reject(reason)
+            return None
+
         # Final validation with governor
         allowed, reason = self.governor.validate_trade(trade)
         if not allowed:

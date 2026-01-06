@@ -79,9 +79,13 @@ options:
 # SCORING (The Judge)
 # =============================================================================
 scoring:
-  # Points required for each grade
-  a_tier_min: 5
-  b_tier_min: 3
+  # Minimum grade to execute a trade
+  # Options: "A" (A-TIER only), "B" (A + B-TIER), "N" (all - not recommended)
+  min_trade_grade: "A"  # Conservative: Only trade A-TIER until we validate
+
+  # Points required for each grade (used by Judge)
+  a_tier_min: 7.0  # Score >= 7.0 for A-TIER
+  b_tier_min: 5.0  # Score >= 5.0 for B-TIER
 
   # Scoring criteria
   criteria:

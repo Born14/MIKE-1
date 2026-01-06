@@ -69,8 +69,9 @@ class ScoringCriterion(BaseModel):
 
 class ScoringConfig(BaseModel):
     """The Judge's scoring system."""
-    a_tier_min: int = 5
-    b_tier_min: int = 3
+    min_trade_grade: str = "A"  # "A" = A-TIER only, "B" = A+B, "N" = all
+    a_tier_min: float = 7.0
+    b_tier_min: float = 5.0
     criteria: dict[str, ScoringCriterion] = Field(default_factory=dict)
 
 
