@@ -1,0 +1,54 @@
+name: MIKE-1 Trading
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'What to run'
+        required: true
+        type: choice
+        options:
+          - scan
+          - check-positions
+          - full-pipeline
+      ticker:
+        description: 'Specific ticker (optional)'
+        required: false
+        type: string
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install alpaca-py python-dotenv pyyaml pydantic pandas
+      - name: Create .env
+        run: |
+          echo "ALPACA_API_KEY=${{ secrets.ALPACA_API_KEY }}" >> .env
+          echo "ALPACA_SECRET_KEY=${{ secrets.ALPACA_SECRET_KEY }}" >> .env
+          echo "ALPACA_PAPER=true" >> .env
+      - name: Run
+        env:
+          PYTHONPATH: engine/src
+        run: |
+          if [ "${{ inputs.action }}" = "check-positions" ]; then
+            python -c "
+          import os
+          from dotenv import load_dotenv
+          load_dotenv()
+          from alpaca.trading.client import TradingClient
+          c = TradingClient(os.getenv('ALPACA_API_KEY'), os.getenv('ALPACA_SECRET_KEY'), paper=True)
+          a = c.get_account()
+          print(f'Cash: \${float(a.cash):,.2f}')
+          print(f'Portfolio: \${float(a.portfolio_value):,.2f}')
+          for p in c.get_all_positions():
+            print(f'{p.symbol}: {p.qty} @ \${float(p.current_price):.2f} ({float(p.unrealized_plpc)*100:+.1f}%)')
+          "
+          elif [ "${{ inputs.action }}" = "scan" ]; then
+            python engine/run_scout.py ${ticker:+--ticker ${{ inputs.ticker }}}
+          else
+            python engine/run_full_pipeline.py --dry-run ${ticker:+--ticker ${{ inputs.ticker }}}
+          fi
